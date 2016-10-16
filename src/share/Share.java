@@ -7,22 +7,18 @@
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
+import java.io.FileWriter;
 import static java.lang.System.exit;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 /**
  *
  * @author Vignesh
  */
 public class Share {
-    
+
     public String option;
     public String ipAddress;
     public String filePath;
@@ -31,27 +27,59 @@ public class Share {
     private DataInputStream inputStream = null;
     private DataOutputStream outputStream = null;
     private FileReader fileReader = null;
-    private FileOutputStream fileOutputStream = null;
-    
-    public Share(String option, String ipAddress, String file) {
-        this.option = option;
+    //private FileOutputStream fileOutputStream = null;
+
+    public Share(String ipAddress, String file) {
         this.ipAddress = ipAddress;
         this.filePath = file;
     }
-    
-    public Share(String option) {
-        this.option = option;
+
+    public Share() {
     }
-    
+
     public void receive() {
-        
+        try {
+            serverSocket = new ServerSocket(6059);
+            socket = serverSocket.accept();
+            inputStream = new DataInputStream(socket.getInputStream());
+            filePath = inputStream.readUTF();
+            //fileReader = new FileReader(filePath);
+            int i;
+            FileWriter fileWriter = new FileWriter(filePath);
+            while((i = inputStream.read()) != -1) {
+                fileWriter.write(i);
+            }
+            inputStream.close();
+            System.out.println("\nFile received : " + filePath);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+
     }
-    
+
     public void send() {
-        
-        
+        try {
+            socket = new Socket(ipAddress, 6059);
+            outputStream = new DataOutputStream(socket.getOutputStream());
+            //data = new String();
+            outputStream.writeUTF(filePath);
+            File f = new File(filePath);
+            long fileLength = f.length();
+            fileReader = new FileReader(filePath);
+            int i, count = 0;
+            while((i = fileReader.read()) != -1) {
+                outputStream.write(i);
+                count++;
+                System.out.print("\rTransfer percentage: " + count / fileLength * 100 + "%");
+            }
+            outputStream.flush();
+            outputStream.close();
+            System.out.println("\nFile shared to peer " + ipAddress);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
     }
-    
+
     public static void printErrorStatement() {
         System.err.println("Error: unrecognized or incomplete command line.");
         System.err.println("USAGE:");
@@ -68,36 +96,26 @@ public class Share {
      */
     public static void main(String[] args) {
         // TODO code application logic here
-        
-        Share share = null;
-        
-        if(args.length == 0) {
-            printErrorStatement();
-            exit(1);
-        }
-        
-        else if(args.length == 1) {
-            share = new Share(args[0]);
-        }
-        
-        else if(args.length == 3) {
-            share = new Share(args[0], args[1], args[2]);
-        }
-        else {
-            printErrorStatement();
-        }
-        
-        switch (share.option) {
-            case "-r":
-                share.receive();
-                break;
+
+        Share share;
+
+        switch (args[0]) {
             case "-s":
+                share = new Share(args[1], args[2]);
                 share.send();
                 break;
+            case "-r":
+                share = new Share();
+                share.receive();
+                break;
+            case "-version":
+                System.out.println("Share version \"1.0\"");
+            case "-help":
             default:
                 printErrorStatement();
+                break;
         }
-        
+
     }
-    
+
 }
